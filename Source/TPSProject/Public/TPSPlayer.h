@@ -15,8 +15,6 @@ public:
 	// Sets default values for this character's properties
 	ATPSPlayer();
 	
-	void Turn(float Value);
-	void LookUp(float Value);
 	
 protected:
 	// Called when the game starts or when spawned
@@ -26,11 +24,22 @@ protected:
 	class USpringArmComponent* SpringArm;
 	UPROPERTY(VisibleAnywhere)
 	class UCameraComponent* Camera;
+	UPROPERTY(VisibleAnywhere)
+	class UStaticMeshComponent* SniperGunComp;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Effect)
+	class UParticleSystem* BulletEffect;
 
 public:
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	
+	void Turn(float Value);
+	void LookUp(float Value);
+	
+	void MoveForward(float Value);
+	void MoveRight(float Value);
+	
+	void PlayerJump();
+	void Fire();
 };
