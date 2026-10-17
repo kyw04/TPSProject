@@ -2,8 +2,8 @@
 
 #include "../Public/TPSPlayer.h"
 
-#include "DiffResults.h"
-#include "EditorGizmos/EditorTRSGizmo.h"
+#include "FrameTypes.h"
+#include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Runtime/Engine/Classes/Camera/CameraComponent.h"
 #include "Runtime/Engine/Classes/GameFramework/SpringArmComponent.h"
@@ -40,6 +40,12 @@ ATPSPlayer::ATPSPlayer()
 		SniperGunComp->SetRelativeRotation(FRotator(0, 0, 0));
 		SniperGunComp->SetRelativeScale3D(FVector(0.15f, 0.15f, 0.15f));
 	}
+
+	ConstructorHelpers::FClassFinder<UUserWidget> TempUI(TEXT("/Game/UI/WBP_Crosshair.WBP_Crosshair_C")); // 경로 뒤에 _C
+	if (TempUI.Succeeded())
+	{
+		CrosshairUIWidget = TempUI.Class;
+	}
 	
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 	
@@ -51,6 +57,8 @@ void ATPSPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 	
+  	CrosshairUI = CreateWidget(GetWorld(), CrosshairUIWidget);
+	CrosshairUI->AddToViewport();
 }
 
 // Called every frame
@@ -70,6 +78,8 @@ void ATPSPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	PlayerInputComponent->BindAxis(TEXT("Vertical"), this, &ATPSPlayer::MoveForward);
 	PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ATPSPlayer::PlayerJump);
 	PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &ATPSPlayer::Fire);
+	PlayerInputComponent->BindAction(TEXT("Zoom"), IE_Pressed, this, &ATPSPlayer::ZoomIn);
+	PlayerInputComponent->BindAction(TEXT("Zoom"), IE_Released, this, &ATPSPlayer::ZoomOut);
 }
 
 void ATPSPlayer::Turn(float Value)
@@ -102,7 +112,7 @@ void ATPSPlayer::PlayerJump()
 void ATPSPlayer::Fire()
 {
 	FHitResult HitInfo;
-	FVector StartLocation = GetActorLocation();
+	FVector StartLocation = Camera->GetComponentLocation();
 	FVector EndLocation = StartLocation + Camera->GetForwardVector() * 50000.0f;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
@@ -118,4 +128,35 @@ void ATPSPlayer::Fire()
 			HitInfo.GetComponent()->AddImpulseAtLocation(Camera->GetForwardVector() * 100000.0f, HitInfo.Location);
 		}
 	}
+}
+
+void ATPSPlayer::ZoomIn()
+{
+	ZoomLerp(45);
+}
+
+void ATPSPlayer::ZoomOut()
+{
+	ZoomLerp(90);
+}
+
+void ATPSPlayer::ZoomLerp(float Value)
+{
+	GetWorld()->GetTimerManager().ClearTimer(ZoomTimerHandle);
+	TargetFOV = Value;
+	GetWorld()->GetTimerManager().SetTimer(ZoomTimerHandle, this, &ATPSPlayer::UpdateZoom, 0.01f, true);
+}
+
+void ATPSPlayer::UpdateZoom()
+{
+	float CurrentFOV = Camera->FieldOfView;
+	if (FMath::IsNearlyEqual(CurrentFOV, TargetFOV, 0.1f))
+	{
+		Camera->SetFieldOfView(TargetFOV);
+		GetWorld()->GetTimerManager().ClearTimer(ZoomTimerHandle);
+		return;
+	}
+
+	float NewFOV = FMath::Lerp(CurrentFOV, TargetFOV, 0.5);
+	Camera->SetFieldOfView(NewFOV);
 }

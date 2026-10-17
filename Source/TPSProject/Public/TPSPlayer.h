@@ -22,13 +22,20 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere)
 	class USpringArmComponent* SpringArm;
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	class UCameraComponent* Camera;
 	UPROPERTY(VisibleAnywhere)
 	class UStaticMeshComponent* SniperGunComp;
 	
 	UPROPERTY(EditDefaultsOnly, Category = Effect)
 	class UParticleSystem* BulletEffect;
+	UPROPERTY(EditDefaultsOnly, Category = UI)
+	TSubclassOf<class UUserWidget> CrosshairUIWidget;
+	UPROPERTY()
+	class UUserWidget* CrosshairUI;
+	
+	FTimerHandle ZoomTimerHandle;
+	float TargetFOV;
 
 public:
 	virtual void Tick(float DeltaTime) override;
@@ -42,4 +49,8 @@ public:
 	
 	void PlayerJump();
 	void Fire();
+	void ZoomIn();
+	void ZoomOut();
+	void ZoomLerp(float Value);
+	void UpdateZoom();
 };
