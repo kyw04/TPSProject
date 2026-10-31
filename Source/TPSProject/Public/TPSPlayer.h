@@ -33,6 +33,10 @@ protected:
 	TSubclassOf<class UUserWidget> CrosshairUIWidget;
 	UPROPERTY()
 	class UUserWidget* CrosshairUI;
+	UPROPERTY(EditDefaultsOnly, Category = UI)
+	TSubclassOf<class UUserWidget> SniperUIWidget;
+	UPROPERTY()
+	class UUserWidget* SniperUI;
 	
 	FTimerHandle ZoomTimerHandle;
 	float TargetFOV;

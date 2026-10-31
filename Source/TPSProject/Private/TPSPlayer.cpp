@@ -2,8 +2,8 @@
 
 #include "../Public/TPSPlayer.h"
 
-#include "FrameTypes.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/SkeletalMeshSocket.h"
 #include "Kismet/GameplayStatics.h"
 #include "Runtime/Engine/Classes/Camera/CameraComponent.h"
 #include "Runtime/Engine/Classes/GameFramework/SpringArmComponent.h"
@@ -25,30 +25,38 @@ ATPSPlayer::ATPSPlayer()
 	
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArm->SetupAttachment(RootComponent);
-	SpringArm->SetRelativeLocation(FVector(0.0f, 0.0f, 60.0f));
+	SpringArm->bUsePawnControlRotation = true;
+	SpringArm->TargetArmLength = 100.0f;
+	SpringArm->SetRelativeLocation(FVector(0.0f, 30.0f, 80.0f));
 	
 	Camera = CreateDefaultSubobject<UCameraComponent>("Camera");
 	Camera->SetupAttachment(SpringArm);
 	
 	SniperGunComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SniperGun"));
-	SniperGunComp->SetupAttachment(GetMesh());
+	SniperGunComp->SetupAttachment(GetMesh(), FName("HandGrip_R"));
+	// SniperGunComp->SetupAttachment(GetMesh());
 	ConstructorHelpers::FObjectFinder<UStaticMesh> TempGun(TEXT("/Game/SniperGun/sniper11.sniper11"));
 	if (TempGun.Succeeded())
 	{
 		SniperGunComp->SetStaticMesh(TempGun.Object);
-		SniperGunComp->SetRelativeLocation(FVector(-50, 50, 100));
+		// SniperGunComp->SetRelativeLocation(FVector(-50, 50, 100));
 		SniperGunComp->SetRelativeRotation(FRotator(0, 0, 0));
 		SniperGunComp->SetRelativeScale3D(FVector(0.15f, 0.15f, 0.15f));
 	}
 
 	ConstructorHelpers::FClassFinder<UUserWidget> TempUI(TEXT("/Game/UI/WBP_Crosshair.WBP_Crosshair_C")); // 경로 뒤에 _C
 	if (TempUI.Succeeded())
-	{
 		CrosshairUIWidget = TempUI.Class;
-	}
+	ConstructorHelpers::FClassFinder<UUserWidget> TempSniperUI(TEXT("/Game/UI/WBP_Sniper.WBP_Sniper_C"));
+	if (TempSniperUI.Succeeded())
+		SniperUIWidget = TempSniperUI.Class;
+
+	ConstructorHelpers::FClassFinder<UAnimInstance> TempAnim(TEXT("/Game/Animations/ABP_Player.ABP_Player_C"));
+	if (TempAnim.Succeeded())
+		GetMesh()->SetAnimInstanceClass(TempAnim.Class);
+	
 	
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
-	
 	JumpMaxCount = 2;
 }
 
@@ -59,6 +67,7 @@ void ATPSPlayer::BeginPlay()
 	
   	CrosshairUI = CreateWidget(GetWorld(), CrosshairUIWidget);
 	CrosshairUI->AddToViewport();
+	SniperUI = CreateWidget(GetWorld(), SniperUIWidget);
 }
 
 // Called every frame
@@ -133,11 +142,15 @@ void ATPSPlayer::Fire()
 void ATPSPlayer::ZoomIn()
 {
 	ZoomLerp(45);
+	CrosshairUI->RemoveFromParent();
+	SniperUI->AddToViewport();
 }
 
 void ATPSPlayer::ZoomOut()
 {
 	ZoomLerp(90);
+	CrosshairUI->AddToViewport();
+	SniperUI->RemoveFromParent();
 }
 
 void ATPSPlayer::ZoomLerp(float Value)
