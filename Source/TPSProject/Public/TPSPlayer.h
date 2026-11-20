@@ -38,8 +38,28 @@ protected:
 	UPROPERTY()
 	class UUserWidget* SniperUI;
 	
+	float LeanDirection;
+	
 	FTimerHandle ZoomTimerHandle;
+	
+	FVector SpringArmDefaultPosition;
+	FVector TargetSpringArmPosition;
+	bool bSpringArmPosSettingEnd;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Zoom)
+	float DefaultFOV = 90.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Zoom)
+	float ShoulderingFOV = 75.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Zoom)
+	float ScopeFOV = 45.0f;
+	
+	bool bFOVSettingEnd;
 	float TargetFOV;
+	float ZoomHoldDelay = 0.1f;
+	float ZoomHoldTime;
+	
+	bool bZoomPressed;
+	bool bZoomIn;
 
 public:
 	virtual void Tick(float DeltaTime) override;
@@ -50,11 +70,13 @@ public:
 	
 	void MoveForward(float Value);
 	void MoveRight(float Value);
+	void SetLean(float Value);
 	
 	void PlayerJump();
 	void Fire();
+	void Shouldering();
 	void ZoomIn();
 	void ZoomOut();
-	void ZoomLerp(float Value);
+	void ZoomLerp(float Value, const FVector& Pos);
 	void UpdateZoom();
 };

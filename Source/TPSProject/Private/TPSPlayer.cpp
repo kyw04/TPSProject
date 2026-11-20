@@ -3,7 +3,6 @@
 #include "../Public/TPSPlayer.h"
 
 #include "Blueprint/UserWidget.h"
-#include "Engine/SkeletalMeshSocket.h"
 #include "Kismet/GameplayStatics.h"
 #include "Runtime/Engine/Classes/Camera/CameraComponent.h"
 #include "Runtime/Engine/Classes/GameFramework/SpringArmComponent.h"
@@ -32,16 +31,16 @@ ATPSPlayer::ATPSPlayer()
 	Camera = CreateDefaultSubobject<UCameraComponent>("Camera");
 	Camera->SetupAttachment(SpringArm);
 	
-	SniperGunComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SniperGun"));
+	SniperGunComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SniperGunMesh"));
 	SniperGunComp->SetupAttachment(GetMesh(), FName("HandGrip_R"));
 	// SniperGunComp->SetupAttachment(GetMesh());
 	ConstructorHelpers::FObjectFinder<UStaticMesh> TempGun(TEXT("/Game/SniperGun/sniper11.sniper11"));
 	if (TempGun.Succeeded())
 	{
 		SniperGunComp->SetStaticMesh(TempGun.Object);
-		// SniperGunComp->SetRelativeLocation(FVector(-50, 50, 100));
-		SniperGunComp->SetRelativeRotation(FRotator(0, 0, 0));
-		SniperGunComp->SetRelativeScale3D(FVector(0.15f, 0.15f, 0.15f));
+		SniperGunComp->SetRelativeLocation(FVector(7.000000,45.000000,-3.000000));
+		SniperGunComp->SetRelativeRotation(FRotator(19.000000,-8.000000,11.000000));
+		SniperGunComp->SetRelativeScale3D(FVector(0.150000,0.150000,0.150000));
 	}
 
 	ConstructorHelpers::FClassFinder<UUserWidget> TempUI(TEXT("/Game/UI/WBP_Crosshair.WBP_Crosshair_C")); // 경로 뒤에 _C
@@ -65,6 +64,8 @@ void ATPSPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	SpringArmDefaultPosition = SpringArm->GetRelativeLocation();
+	
   	CrosshairUI = CreateWidget(GetWorld(), CrosshairUIWidget);
 	CrosshairUI->AddToViewport();
 	SniperUI = CreateWidget(GetWorld(), SniperUIWidget);
@@ -74,6 +75,13 @@ void ATPSPlayer::BeginPlay()
 void ATPSPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
+	if (bZoomPressed && !bZoomIn)
+	{
+		ZoomHoldTime += DeltaTime;
+		if (ZoomHoldTime >= ZoomHoldDelay)
+			bZoomIn = true;
+	}
 }
 
 // Called to bind functionality to input
@@ -85,6 +93,7 @@ void ATPSPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &ATPSPlayer::LookUp);
 	PlayerInputComponent->BindAxis(TEXT("Horizontal"), this, &ATPSPlayer::MoveRight);
 	PlayerInputComponent->BindAxis(TEXT("Vertical"), this, &ATPSPlayer::MoveForward);
+	PlayerInputComponent->BindAxis(TEXT("Lean"), this, &ATPSPlayer::SetLean);
 	PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ATPSPlayer::PlayerJump);
 	PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &ATPSPlayer::Fire);
 	PlayerInputComponent->BindAction(TEXT("Zoom"), IE_Pressed, this, &ATPSPlayer::ZoomIn);
@@ -113,6 +122,21 @@ void ATPSPlayer::MoveRight(float Value)
 	AddMovementInput(direction);
 }
 
+void ATPSPlayer::SetLean(float Value)
+{
+	float newValue = Value ? Value : LeanDirection;
+	if (newValue != LeanDirection)
+	{
+		LeanDirection = newValue;
+		SpringArmDefaultPosition.Y *= -1.0f;
+		
+		if (!bZoomIn)
+			ZoomLerp(DefaultFOV, SpringArmDefaultPosition);
+		else if (ZoomHoldTime >= ZoomHoldDelay)
+			Shouldering();
+	}
+}
+
 void ATPSPlayer::PlayerJump()
 {
 	Jump();
@@ -139,37 +163,79 @@ void ATPSPlayer::Fire()
 	}
 }
 
-void ATPSPlayer::ZoomIn()
+void ATPSPlayer::Shouldering()
 {
-	ZoomLerp(45);
-	CrosshairUI->RemoveFromParent();
-	SniperUI->AddToViewport();
-}
-
-void ATPSPlayer::ZoomOut()
-{
-	ZoomLerp(90);
+	FVector springArmPosition = SpringArmDefaultPosition;
+	springArmPosition.Y *= 2.0f;
+	ZoomLerp(ShoulderingFOV, springArmPosition);
+	SpringArm->TargetArmLength = 75.0f;
 	CrosshairUI->AddToViewport();
 	SniperUI->RemoveFromParent();
 }
 
-void ATPSPlayer::ZoomLerp(float Value)
+void ATPSPlayer::ZoomIn()
+{
+	Shouldering();
+	bZoomPressed = true;
+	ZoomHoldTime = 0.0f;
+}
+
+void ATPSPlayer::ZoomOut()
+{
+	bZoomPressed = false;
+	SpringArm->TargetArmLength = 100.0f;
+	if (bZoomIn)
+	{
+		bZoomIn = false;
+		ZoomLerp(DefaultFOV, SpringArmDefaultPosition);
+		CrosshairUI->AddToViewport();
+		SniperUI->RemoveFromParent();
+	}
+	else
+	{
+		bZoomIn = true;
+		ZoomLerp(ScopeFOV, SpringArmDefaultPosition);
+		CrosshairUI->RemoveFromParent();
+		SniperUI->AddToViewport();
+	}
+}
+
+void ATPSPlayer::ZoomLerp(float Value, const FVector& Pos)
 {
 	GetWorld()->GetTimerManager().ClearTimer(ZoomTimerHandle);
 	TargetFOV = Value;
+	bFOVSettingEnd = false;
+	TargetSpringArmPosition = Pos;
+	bSpringArmPosSettingEnd = false;
 	GetWorld()->GetTimerManager().SetTimer(ZoomTimerHandle, this, &ATPSPlayer::UpdateZoom, 0.01f, true);
 }
 
 void ATPSPlayer::UpdateZoom()
 {
-	float CurrentFOV = Camera->FieldOfView;
-	if (FMath::IsNearlyEqual(CurrentFOV, TargetFOV, 0.1f))
+	if (!bFOVSettingEnd)
 	{
-		Camera->SetFieldOfView(TargetFOV);
-		GetWorld()->GetTimerManager().ClearTimer(ZoomTimerHandle);
-		return;
+		float CurrentFOV = Camera->FieldOfView;
+		if (FMath::IsNearlyEqual(CurrentFOV, TargetFOV, 0.1f))
+		{
+			bFOVSettingEnd = true;
+			Camera->SetFieldOfView(TargetFOV);
+		}
+		else
+			Camera->SetFieldOfView(FMath::Lerp(CurrentFOV, TargetFOV, 0.5f));
 	}
 
-	float NewFOV = FMath::Lerp(CurrentFOV, TargetFOV, 0.5);
-	Camera->SetFieldOfView(NewFOV);
+	if (!bSpringArmPosSettingEnd)
+	{
+		FVector CurrentLocation = SpringArm->GetRelativeLocation();
+		if (CurrentLocation.Equals(TargetSpringArmPosition, 0.1f))
+		{
+			bSpringArmPosSettingEnd = true;
+			SpringArm->SetRelativeLocation(TargetSpringArmPosition);
+		}
+		else
+			SpringArm->SetRelativeLocation(FMath::Lerp(CurrentLocation, TargetSpringArmPosition, 0.5f));
+	}
+
+	if (bFOVSettingEnd && bSpringArmPosSettingEnd)
+		GetWorld()->GetTimerManager().ClearTimer(ZoomTimerHandle);
 }
