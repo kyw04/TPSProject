@@ -2,6 +2,8 @@
 
 #include "../Public/TPSPlayer.h"
 
+#include "PlayerAnim.h"
+#include "PlayerMoveComp.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Runtime/Engine/Classes/Camera/CameraComponent.h"
@@ -33,13 +35,12 @@ ATPSPlayer::ATPSPlayer()
 	
 	SniperGunComp = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SniperGunMesh"));
 	SniperGunComp->SetupAttachment(GetMesh(), FName("HandGrip_R"));
-	// SniperGunComp->SetupAttachment(GetMesh());
 	ConstructorHelpers::FObjectFinder<UStaticMesh> TempGun(TEXT("/Game/SniperGun/sniper11.sniper11"));
 	if (TempGun.Succeeded())
 	{
 		SniperGunComp->SetStaticMesh(TempGun.Object);
-		SniperGunComp->SetRelativeLocation(FVector(7.000000,45.000000,-3.000000));
-		SniperGunComp->SetRelativeRotation(FRotator(19.000000,-8.000000,11.000000));
+		SniperGunComp->SetRelativeLocation(FVector(7.000000,33.000000,-2.000000));
+		SniperGunComp->SetRelativeRotation(FRotator(20.000000,-8.000000,10.000000));
 		SniperGunComp->SetRelativeScale3D(FVector(0.150000,0.150000,0.150000));
 	}
 
@@ -50,13 +51,14 @@ ATPSPlayer::ATPSPlayer()
 	if (TempSniperUI.Succeeded())
 		SniperUIWidget = TempSniperUI.Class;
 
-	ConstructorHelpers::FClassFinder<UAnimInstance> TempAnim(TEXT("/Game/Animations/ABP_Player.ABP_Player_C"));
-	if (TempAnim.Succeeded())
-		GetMesh()->SetAnimInstanceClass(TempAnim.Class);
-	
+	// ConstructorHelpers::FClassFinder<UAnimInstance> TempAnim(TEXT("/Game/Animations/ABP_Player.ABP_Player_C"));
+	// if (TempAnim.Succeeded())
+	// 	GetMesh()->SetAnimInstanceClass(TempAnim.Class);
 	
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 	JumpMaxCount = 2;
+	
+	PlayerMoveComp = CreateDefaultSubobject<UPlayerMoveComp>(TEXT("PlayerMoveComp"));
 }
 
 // Called when the game starts or when spawned
@@ -144,6 +146,12 @@ void ATPSPlayer::PlayerJump()
 
 void ATPSPlayer::Fire()
 {
+	auto anim = Cast<UPlayerAnim>(GetMesh()->GetAnimInstance());
+	if (anim)
+	{
+		anim->PlayFireAnimation();
+	}
+	
 	FHitResult HitInfo;
 	FVector StartLocation = Camera->GetComponentLocation();
 	FVector EndLocation = StartLocation + Camera->GetForwardVector() * 50000.0f;

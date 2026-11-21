@@ -79,4 +79,7 @@ public:
 	void ZoomOut();
 	void ZoomLerp(float Value, const FVector& Pos);
 	void UpdateZoom();
+	
+	UPROPERTY(VisibleAnywhere)
+	class UPlayerMoveComp* PlayerMoveComp;
 };
