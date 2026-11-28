@@ -65,15 +65,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
-	void Turn(float Value);
-	void LookUp(float Value);
-	
-	void MoveForward(float Value);
-	void MoveRight(float Value);
-	void SetLean(float Value);
-	
-	void PlayerJump();
 	void Fire();
+	void SetLean(float Value);
 	void Shouldering();
 	void ZoomIn();
 	void ZoomOut();
@@ -81,5 +74,5 @@ public:
 	void UpdateZoom();
 	
 	UPROPERTY(VisibleAnywhere)
-	class UPlayerMoveComp* PlayerMoveComp;
+	class UPlayerBaseComp* PlayerMoveComp;
 };

@@ -91,57 +91,12 @@ void ATPSPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	
-	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &ATPSPlayer::Turn);
-	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &ATPSPlayer::LookUp);
-	PlayerInputComponent->BindAxis(TEXT("Horizontal"), this, &ATPSPlayer::MoveRight);
-	PlayerInputComponent->BindAxis(TEXT("Vertical"), this, &ATPSPlayer::MoveForward);
+	PlayerMoveComp->SetupPlayerInputBinding(PlayerInputComponent);
+	
 	PlayerInputComponent->BindAxis(TEXT("Lean"), this, &ATPSPlayer::SetLean);
-	PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ATPSPlayer::PlayerJump);
 	PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &ATPSPlayer::Fire);
 	PlayerInputComponent->BindAction(TEXT("Zoom"), IE_Pressed, this, &ATPSPlayer::ZoomIn);
 	PlayerInputComponent->BindAction(TEXT("Zoom"), IE_Released, this, &ATPSPlayer::ZoomOut);
-}
-
-void ATPSPlayer::Turn(float Value)
-{
-	AddControllerYawInput(Value);
-}
-
-void ATPSPlayer::LookUp(float Value)
-{
-	AddControllerPitchInput(Value);
-}
-
-void ATPSPlayer::MoveForward(float Value)
-{
-	FVector direction = FRotationMatrix(GetControlRotation()).GetScaledAxis(EAxis::X) * Value;
-	AddMovementInput(direction);
-}
-
-void ATPSPlayer::MoveRight(float Value)
-{
-	FVector direction = FRotationMatrix(GetControlRotation()).GetScaledAxis(EAxis::Y) * Value;
-	AddMovementInput(direction);
-}
-
-void ATPSPlayer::SetLean(float Value)
-{
-	float newValue = Value ? Value : LeanDirection;
-	if (newValue != LeanDirection)
-	{
-		LeanDirection = newValue;
-		SpringArmDefaultPosition.Y *= -1.0f;
-		
-		if (!bZoomIn)
-			ZoomLerp(DefaultFOV, SpringArmDefaultPosition);
-		else if (ZoomHoldTime >= ZoomHoldDelay)
-			Shouldering();
-	}
-}
-
-void ATPSPlayer::PlayerJump()
-{
-	Jump();
 }
 
 void ATPSPlayer::Fire()
@@ -168,6 +123,21 @@ void ATPSPlayer::Fire()
 		{
 			HitInfo.GetComponent()->AddImpulseAtLocation(Camera->GetForwardVector() * 100000.0f, HitInfo.Location);
 		}
+	}
+}
+
+void ATPSPlayer::SetLean(float Value)
+{
+	float newValue = Value ? Value : LeanDirection;
+	if (newValue != LeanDirection)
+	{
+		LeanDirection = newValue;
+		SpringArmDefaultPosition.Y *= -1.0f;
+		
+		if (!bZoomIn)
+			ZoomLerp(DefaultFOV, SpringArmDefaultPosition);
+		else if (ZoomHoldTime >= ZoomHoldDelay)
+			Shouldering();
 	}
 }
 
